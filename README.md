@@ -13,7 +13,7 @@
     dependencies:
       flutter_jd_address_selector:
         git:
-          url: https://github.com/shenhuaxiyuan/flutter_jd_address_selector
+          url: https://github.com/everfire130/flutter_jd_address_selector
 ```
 
 ### import
