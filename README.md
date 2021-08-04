@@ -13,6 +13,7 @@ dependencies:
   flutter_jd_address_selector:
     git:
       url: https://github.com/everfire130/flutter_jd_address_selector
+      ref: 1.0.0
 ```
 
 ### import
