@@ -1,33 +1,32 @@
-
 import 'dart:convert';
 
 /// CityPicker 返回的 **Result** 结果函数
 class Result {
   /// provinceId
-  String provinceId;
+  final String provinceId;
 
   /// cityId
-  String cityId;
+  final String cityId;
 
   /// areaId
-  String areaId;
+  final String areaId;
 
   /// provinceName
-  String provinceName;
+  final String provinceName;
 
   /// cityName
-  String cityName;
+  final String cityName;
 
   /// areaName
-  String areaName;
+  final String areaName;
 
   Result(
-      {this.provinceId,
-      this.cityId,
-      this.areaId,
-      this.provinceName,
-      this.cityName,
-      this.areaName});
+      {this.provinceId = "",
+      this.cityId = "",
+      this.areaId = "",
+      this.provinceName = "",
+      this.cityName = "",
+      this.areaName = ""});
 
   /// string json
   @override
@@ -41,7 +40,6 @@ class Result {
       'areaId': areaId
     };
     obj.removeWhere((key, value) => value == null);
-
     return json.encode(obj);
   }
 }

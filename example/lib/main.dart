@@ -23,7 +23,7 @@ class _MyAppState extends State<MyApp> {
 }
 
 class HomePage extends StatefulWidget {
-  HomePage({Key key}) : super(key: key);
+  HomePage({Key? key}) : super(key: key);
 
   @override
   createState() => _HomePageState();
@@ -49,25 +49,20 @@ class _HomePageState extends State<HomePage> {
 
   void _choiceAddressDialog() async {
     print('======');
-    showModalBottomSheet(
+    Result? result = await showAddressSelectorDialog(
         context: context,
-        isScrollControlled: true,  //设为true，此时为全屏展示
-        builder: (BuildContext context) {
-          return JDAddressDialog(
-              provinceName: _result.provinceName,
-              cityName: _result.cityName,
-              areaName: _result.areaName,
-              onSelected: (Result result) {
-                _result = result;
-                address = '${result.provinceName}-${result.cityName}-${result.areaName}\n'+
-                "${result.provinceId}-${result.cityId}-${result.areaId}";
+        province: _result.provinceName,
+        city: _result.cityName,
+        area: _result.areaName);
 
-                print('$address');
-                setState(() {});
-              },
-              title: '选择地址',
-              selectedColor: Colors.red,
-              unselectedColor: Colors.black);
-        });
+    if (result != null) {
+      _result = result;
+      address =
+          '${result.provinceName}-${result.cityName}-${result.areaName}\n' +
+              "${result.provinceId}-${result.cityId}-${result.areaId}";
+
+      print('$address');
+      setState(() {});
+    }
   }
 }

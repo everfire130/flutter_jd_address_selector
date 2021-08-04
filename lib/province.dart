@@ -1,58 +1,67 @@
 class Province {
-  String name;
-  String no;
-  List<City> cityList;
+  final String name;
+  final String no;
+  final List<City> cityList;
 
-  Province({this.name, this.no, this.cityList});
+  const Province(
+      {required this.name, required this.no, required this.cityList});
 
-  Province.fromJson(Map<String, dynamic> json) {    
-    this.name = json['name'];
-    this.no = json['no'];
-    this.cityList = (json['cityList'] as List)!=null?(json['cityList'] as List).map((i) => City.fromJson(i)).toList():null;
+  Province.fromJson(Map<String, dynamic> json)
+      : this.name = json['name'] ?? '',
+        this.no = json['no'] ?? '',
+        this.cityList = [] {
+    if (json['cityList'] != null) {
+      json['cityList'].forEach((itemJson) {
+        cityList.add(City.fromJson(itemJson));
+      });
+    }
   }
 
   Map<String, dynamic> toJson() {
     final Map<String, dynamic> data = new Map<String, dynamic>();
     data['name'] = this.name;
     data['no'] = this.no;
-    data['cityList'] = this.cityList != null?this.cityList.map((i) => i.toJson()).toList():null;
+    data['cityList'] = this.cityList.map((e) => e.toJson()).toList();
     return data;
   }
-
 }
 
 class City {
-  String name;
-  String no;
-  List<County> countyList;
+  final String name;
+  final String no;
+  final List<County> countyList;
 
-  City({this.name, this.no, this.countyList});
+  City({required this.name, required this.no, required this.countyList});
 
-  City.fromJson(Map<String, dynamic> json) {
-    this.name = json['name'];
-    this.no = json['no'];
-    this.countyList = (json['countyList'] as List)!=null?(json['countyList'] as List).map((i) => County.fromJson(i)).toList():null;
+  City.fromJson(Map<String, dynamic> json)
+      : this.name = json['name'],
+        this.no = json['no'],
+        this.countyList = [] {
+    if (json['countyList'] != null) {
+      json['countyList'].forEach((itemJson) {
+        this.countyList.add(County.fromJson(itemJson));
+      });
+    }
   }
 
   Map<String, dynamic> toJson() {
     final Map<String, dynamic> data = new Map<String, dynamic>();
     data['name'] = this.name;
     data['no'] = this.no;
-    data['countyList'] = this.countyList != null?this.countyList.map((i) => i.toJson()).toList():null;
+    data['countyList'] = this.countyList.map((e) => e.toJson()).toList();
     return data;
   }
 }
 
 class County {
-  String name;
-  String no;
+  final String name;
+  final String no;
 
-  County({this.name, this.no});
+  const County({required this.name, required this.no});
 
-  County.fromJson(Map<String, dynamic> json) {
-    this.name = json['name'];
-    this.no = json['no'];
-  }
+  County.fromJson(Map<String, dynamic> json)
+      : this.name = json['name'] ?? '',
+        this.no = json['no'] ?? '';
 
   Map<String, dynamic> toJson() {
     final Map<String, dynamic> data = new Map<String, dynamic>();

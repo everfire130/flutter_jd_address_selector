@@ -10,38 +10,32 @@ import 'package:flutter/services.dart';
 import 'package:flutter_jd_address_selector/province.dart';
 import 'package:flutter_jd_address_selector/result.dart';
 import 'package:lpinyin/lpinyin.dart';
-
-import 'dart:ui' as ui show window;
-
 import 'entity_info_model.dart';
+import 'package:scrollable_positioned_list/scrollable_positioned_list.dart';
 
 class JDAddressDialog extends StatefulWidget {
-  final String title;
-  final Function(Result) onSelected;
+  final String? title;
 
   final Color unselectedColor;
   final Color selectedColor;
-
   final double itemTextFontSize;
-
   final TextStyle titleTextStyle;
 
-  final String provinceName;
-  final String cityName;
-  final String areaName;
+  final String? provinceName;
+  final String? cityName;
+  final String? areaName;
 
   JDAddressDialog(
-      {Key key,
-        @required this.onSelected,
-        this.title,
-        this.unselectedColor: Colors.grey,
-        this.selectedColor: Colors.blue,
-        this.itemTextFontSize: 14.0,
-        this.provinceName,
-        this.cityName,
-        this.areaName,
-        this.titleTextStyle: const TextStyle(
-            fontSize: 16.0, color: Colors.black, fontWeight: FontWeight.bold)})
+      {Key? key,
+      this.title,
+      this.unselectedColor = Colors.grey,
+      this.selectedColor = Colors.blue,
+      this.itemTextFontSize = 14.0,
+      this.provinceName,
+      this.cityName,
+      this.areaName,
+      this.titleTextStyle: const TextStyle(
+          fontSize: 16.0, color: Colors.black, fontWeight: FontWeight.bold)})
       : super(key: key);
 
   @override
@@ -50,45 +44,132 @@ class JDAddressDialog extends StatefulWidget {
 
 class _JDAddressDialogState extends State<JDAddressDialog>
     with TickerProviderStateMixin {
-  int _index = 0;
-
-  TabController _tabController;
-  ScrollController _controller;
-
-  /// TabBar不能动态加载，所以初始化3个，其中两个文字置空，点击事件拦截住。
-  List<Tab> myTabs = <Tab>[Tab(text: '请选择'), Tab(text: ''), Tab(text: '')];
-
-  List<Province> provinces = [];
-
-//  List cities = [];
-//  List counties = [];
+  late final TabController _tabController;
+  late final ItemScrollController _itemScrollController;
+  List<Province> _provinces = [];
 
   /// 当前列表数据
-  List<EntityInfo> mList = [];
+  List<EntityInfo> _list = [];
 
   /// 三级联动选择的position
-  var _positions = [0, 0, 0];
-
-  double _itemHeight = 48.0;
-  int _suspensionHeight = 20;
-  String _suspensionTag = "";
-  double headerHeight = 170;
+  final List<int> _positions = List.generate(3, (index) => -1, growable: false);
+  static const double _ITEM_HEIGHT = 48.0;
+  static const double _SUS_HEIGHT = 20;
 
   @override
   void initState() {
     super.initState();
+    _itemScrollController = ItemScrollController();
+    _tabController = TabController(vsync: this, length: _positions.length);
 
-    _controller = ScrollController();
+    _loadData().then((value) => setState(() {
+          _provinces = value;
+          int provinceIndex = -1;
+          int cityIndex = -1;
+          int areaIndex = -1;
 
-    _tabController = TabController(vsync: this, length: myTabs.length);
+          if (widget.provinceName != null) {
+            provinceIndex = _provinces
+                .indexWhere((province) => province.name == widget.provinceName);
+          }
 
-    _initData();
+          if (provinceIndex >= 0 && widget.cityName != null) {
+            cityIndex = _provinces[provinceIndex]
+                .cityList
+                .indexWhere((city) => city.name == widget.cityName);
+          }
+
+          if (cityIndex >= 0 && widget.areaName != null) {
+            areaIndex = _provinces[provinceIndex]
+                .cityList[cityIndex]
+                .countyList
+                .indexWhere((area) => area.name == widget.areaName);
+          }
+
+          _positions[0] = provinceIndex;
+          _positions[1] = cityIndex;
+          _positions[2] = areaIndex;
+          _tabController.index = _index;
+          _resetList();
+
+          if (areaIndex >= 0) {
+            final jumpIndex =
+                _list.indexWhere((item) => item.name == widget.areaName);
+            WidgetsBinding.instance?.addPostFrameCallback((timeStamp) {
+              _itemScrollController.jumpTo(index: jumpIndex);
+            });
+          }
+        }));
+  }
+
+  _resetList() {
+    if (_positions[0] >= 0) {
+      final province = _provinces[_positions[0]];
+
+      if (_positions[1] >= 0) {
+        final city = province.cityList[_positions[1]];
+
+        _list =
+            city.countyList.map((item) => EntityInfo(name: item.name)).toList();
+      } else {
+        _list = province.cityList
+            .map((item) => EntityInfo(name: item.name))
+            .toList();
+      }
+    } else {
+      _list = _provinces.map((item) => EntityInfo(name: item.name)).toList();
+    }
+    _handleList(_list);
   }
 
   @override
   void dispose() {
-    _tabController?.dispose();
+    _tabController.dispose();
     super.dispose();
+  }
+
+  int get _index {
+    for (var i = _positions.length - 1; i >= 0; i--) {
+      if (_positions[i] != -1) {
+        final index = i + 1;
+        if (index >= _positions.length) {
+          return _positions.length - 1;
+        }
+        return index;
+      }
+    }
+    return 0;
+  }
+
+  List<String> get _tabStrings {
+    final strings = List.generate(_positions.length, (index) => '');
+    if (_positions[0] >= 0) {
+      final province = _provinces[_positions[0]];
+      strings[0] = province.name;
+
+      if (_positions[1] >= 0) {
+        final city = province.cityList[_positions[1]];
+        strings[1] = city.name;
+        if (_positions[2] >= 0) {
+          final area = city.countyList[_positions[2]];
+          strings[2] = area.name;
+        }
+      }
+    }
+    return strings;
+  }
+
+  List<Tab> get _tabs {
+    bool firstEmpty = false;
+    return _tabStrings.map((item) {
+      if (!firstEmpty && item.isEmpty) {
+        firstEmpty = true;
+        item = '请选择';
+      }
+      return Tab(
+        text: item,
+      );
+    }).toList();
   }
 
   @override
@@ -96,8 +177,7 @@ class _JDAddressDialogState extends State<JDAddressDialog>
     return Material(
         color: Colors.white,
         child: Container(
-            height:
-            MediaQueryData.fromWindow(ui.window).size.height * 11.0 / 16.0,
+            height: MediaQuery.of(context).size.height * 11.0 / 16.0,
             child: Column(children: <Widget>[
               Stack(children: <Widget>[
                 Container(
@@ -105,7 +185,7 @@ class _JDAddressDialogState extends State<JDAddressDialog>
                     alignment: Alignment.center,
                     padding: const EdgeInsets.symmetric(vertical: 16.0),
                     child:
-                    Text("${widget.title}", style: widget.titleTextStyle)),
+                        Text("${widget.title}", style: widget.titleTextStyle)),
                 Positioned(
                     right: 0,
                     child: IconButton(
@@ -120,276 +200,102 @@ class _JDAddressDialogState extends State<JDAddressDialog>
                       controller: _tabController,
                       isScrollable: true,
                       onTap: (index) {
-                        if (myTabs[index].text.isEmpty) {
-                          _tabController.animateTo(_index);
+                        if (_positions[index] == -1) {
+                          _tabController.index = _index;
                           return;
                         }
-                        setState(() {
-                          _index = index;
-                          _initData();
-                        });
-                        Future.delayed(Duration(milliseconds: 100)).then((value) {
-                          var height = _positions[_index] * _itemHeight;
-                          if(height>0){
-                            if(_index==0)
-                              height+=headerHeight-10;//index==0的时候顶部有header，其它没有
-                            for(int i=0;i<_positions[_index];i++){
-                              if(mList[i].isShowSuspension){
-                                height+=_suspensionHeight;
-                              }
-                            }
-                            _controller.animateTo(
-                                height,
-                                duration: Duration(milliseconds: 200),
-                                curve: Curves.ease);
-                          }
-
-                        });
-
+                        for (var i = index; i < _positions.length; i++) {
+                          _positions[i] = -1;
+                        }
+                        _resetList();
+                        setState(() {});
+                        _itemScrollController.jumpTo(index: 0);
                       },
                       indicatorSize: TabBarIndicatorSize.label,
                       unselectedLabelColor: Colors.black,
                       labelColor: widget.selectedColor,
-                      tabs: myTabs)),
+                      tabs: _tabs)),
               _line,
               Expanded(
-                  child: provinces.length > 0
+                  child: _provinces.length > 0
                       ? _buildListView()
-                      : CupertinoActivityIndicator(animating: false))
+                      : CupertinoActivityIndicator(animating: true))
             ])));
   }
 
-
-  void _initData() async {
-    if (provinces.length == 0) {
-      var value = await rootBundle.loadString(
-          'packages/flutter_jd_address_selector/assets/chinese_cities.json');
-//      provinces = json.decode(value);
-      provinces = (json.decode(value) as List).map((e) => Province.fromJson(e)).toList();
-      try{
-        if(widget.provinceName!=null){
-          var province = provinces
-              .firstWhere((province) => province.name == widget.provinceName);
-          _index=0;
-          myTabs[_index] = Tab(text: province.name);
-          _positions[_index] = provinces.indexOf(province);
-          if(widget.cityName!=null){
-            var city = province.cityList
-                .firstWhere((city) => city.name == widget.cityName);
-            _index=1;
-            myTabs[_index] = Tab(text: city.name);
-            _positions[_index] = province.cityList.indexOf(city);
-            _tabController = TabController(vsync: this, length: myTabs.length,initialIndex: _index);
-            if(widget.areaName!=null){
-              var area = city.countyList
-                  .firstWhere((area) => area.name == widget.areaName);
-              _index=2;
-              myTabs[_index] = Tab(text: area.name);
-              _positions[_index] = city.countyList.indexOf(area);
-              _tabController = TabController(vsync: this, length: myTabs.length,initialIndex: _index);
-            }
-          }
-        }
-      }catch(e){}
-    }
-
-    mList.clear();
-    switch (_index) {
-      case 0:
-        provinces.forEach((province) {
-          mList.add(EntityInfo(name: province.name));
-        });
-
-        break;
-      case 1:
-        var province = provinces.firstWhere((province) {
-          return province.name == myTabs[0].text;
-        });
-        province.cityList.forEach((city) {
-          mList.add(EntityInfo(name: city.name));
-        });
-        break;
-      case 2:
-        var province = provinces
-            .firstWhere((province) => province.name == myTabs[0].text);
-        var city = province.cityList
-            .firstWhere((city) => city.name == myTabs[1].text);
-        city.countyList.forEach((county) {
-          mList.add(EntityInfo(name: county.name));
-        });
-        break;
-    }
-    _handleList(mList);
-    if(mList.isEmpty){
-      return;
-    }
-
-    //排序完毕后处理移动
-    getPositions();
-
-    _suspensionTag = mList[0].getSuspensionTag();
-    setState(() {});
-  }
-
-  getPositions(){
-    List.generate(mList.length, (index){
-      if(mList[index].name==myTabs[_index].text){
-        _positions[_index] = index;
-      }
-    });
-  }
-
-
-  clickTop(String name){
-    _index=2;
-    if(name=="北京市"||name=="上海市"||name=="天津市"){
-      myTabs[0] = Tab(text: name);
-      myTabs[1] = Tab(text: name);
-      myTabs[2] = Tab(text: "请选择");
-    }
-    else{
-      provinces.forEach((province) {
-        province.cityList.forEach((city){
-          if(city.name==name){
-            myTabs[0] = Tab(text: province.name,);
-          }
-        });
-      });
-      myTabs[1] = Tab(text: name);
-      myTabs[2] = Tab(text: "请选择");
-    }
-    _initData();
-    setState(() {});
-    _tabController.animateTo(_index);
-
+  Future<List<Province>> _loadData() async {
+    final jsonData = await rootBundle.loadString(
+        'packages/flutter_jd_address_selector/assets/chinese_cities.json');
+    return (json.decode(jsonData) as List)
+        .map((e) => Province.fromJson(e))
+        .toList();
   }
 
   clickItem(String name) {
-    myTabs[_index] = Tab(text: name);
-    EntityInfo info = mList.firstWhere((element) => element.name==name);
-    _positions[_index] = mList.indexOf(info);
-    _index++;
-    _initData();
-    switch (_index) {
-      case 1:
-        myTabs[1] = Tab(text: "请选择");
-        myTabs[2] = Tab(text: "");
-        break;
-      case 2:
-        myTabs[2] = Tab(text: "请选择");
-        break;
-      case 3:
-        _index = 2;
-        //查找id
-        var province = provinces.firstWhere((province) => province.name==myTabs[0].text);
-        var city = province.cityList.firstWhere((city) => city.name==myTabs[1].text);
-        var county = city.countyList.firstWhere((county) => county.name==myTabs[2].text);
-        widget.onSelected(Result(
-            provinceName:province.name,
-            cityName: city.name ,
-            areaName: county.name ,
-            provinceId: province.no,
-            cityId: city.no,
-            areaId: county.no
-        ));
-        Navigator.maybePop(context);
-        break;
+    if (_index == 0) {
+      _positions[_index] = _provinces.indexWhere((item) => item.name == name);
+    } else if (_index == 1) {
+      _positions[_index] = _provinces[_positions[0]]
+          .cityList
+          .indexWhere((element) => element.name == name);
+    } else {
+      _positions[_index] = _provinces[_positions[0]]
+          .cityList[_positions[1]]
+          .countyList
+          .indexWhere((element) => element.name == name);
     }
-    setState(() {});
+    _resetList();
     _tabController.animateTo(_index);
-  }
+    setState(() {});
 
-  Widget _buildHeader() {
-    List<EntityInfo> hotCityList = List();
-    hotCityList.addAll([
-      EntityInfo(name: "北京市"),
-      EntityInfo(name: "上海市"),
-      EntityInfo(name: "广州市"),
-      EntityInfo(name: "杭州市"),
-      EntityInfo(name: "南京市"),
-      EntityInfo(name: "苏州市"),
-      EntityInfo(name: "天津市"),
-      EntityInfo(name: "武汉市"),
-      EntityInfo(name: "长沙市"),
-      EntityInfo(name: "重庆市"),
-      EntityInfo(name: "成都市"),
-    ]);
-    return Column(
-      mainAxisSize: MainAxisSize.max,
-      children: <Widget>[
-        Container(
-          alignment: Alignment.centerLeft,
-          padding: const EdgeInsets.only(left: 10,right: 20,top: 5,bottom: 5),
-          color: Color(0xfff3f4f5),
-          child: Text("热门城市",style: TextStyle(
-            fontSize: 14.0,
-            color: Color(0xff999999),
-          )),
-        ),
-        Container(
-          width: double.infinity,
-          padding: const EdgeInsets.only(left: 0,right: 20,top: 5,bottom: 10),
-          child: Wrap(
-            alignment: WrapAlignment.start,
-            runAlignment: WrapAlignment.center,
-            children: hotCityList.map((e) {
-              return InkWell(
-                onTap: (){
-                  clickTop(e.name);
-                },
-                child: Container(
-                  width: MediaQuery.of(context).size.width/4.5,
-                  padding: EdgeInsets.symmetric(horizontal: 10,vertical: 10),
-                  alignment: Alignment.center,
-                  child: Text(e.name,style: TextStyle(fontSize: 14,color: Colors.black87),),
-                ),
-              );
-            }).toList(),
-          ),
-        ),
-      ],
-    );
-  }
+    if (_index == 2 && _positions[_index] != -1) {
+      final province = _provinces[_positions[0]];
+      final city = province.cityList[_positions[1]];
+      final area = city.countyList[_positions[2]];
 
+      Navigator.of(context).maybePop(Result(
+          provinceId: province.no,
+          provinceName: province.name,
+          cityId: city.no,
+          cityName: city.name,
+          areaId: area.no,
+          areaName: area.name));
+    } else {
+      _itemScrollController.jumpTo(index: 0);
+    }
+  }
 
   Widget _buildListItem(EntityInfo info) {
-    String susTag = info.getSuspensionTag();
-    susTag = (susTag == "★" ? "热门城市" : susTag);
-    return Column(
-      children: <Widget>[
-        Offstage(
-          offstage: info.isShowSuspension != true,
-          child: _buildSusWidget(susTag),
-        ),
-        InkWell(
-            child: Container(
-                padding: EdgeInsets.symmetric(horizontal: 14.0),
-                height: _itemHeight,
-                alignment: Alignment.centerLeft,
-                child: Row(children: <Widget>[
-                  Text(info.name,
-                      style: TextStyle(
-                          fontSize: widget.itemTextFontSize,
-                          color: info.name == myTabs[_index].text
-                              ? widget.selectedColor
-                              : widget.unselectedColor)),
-                  SizedBox(height: 8),
-                  Offstage(
-                      offstage: info.name != myTabs[_index].text,
-                      child: Icon(Icons.check,
-                          size: 14.0, color: widget.selectedColor))
-                ])),
-            onTap: () {
-              clickItem(info.name);
-            })
-      ],
-    );
+    final tabStrings = _tabStrings;
+
+    return InkWell(
+        child: Container(
+            padding: EdgeInsets.symmetric(horizontal: 14.0),
+            height: _ITEM_HEIGHT,
+            alignment: Alignment.centerLeft,
+            child: Row(children: <Widget>[
+              Text(info.name,
+                  style: TextStyle(
+                      fontSize: widget.itemTextFontSize,
+                      color: info.name == tabStrings[_index]
+                          ? widget.selectedColor
+                          : widget.unselectedColor)),
+              SizedBox(height: 8),
+              Offstage(
+                  offstage: info.name != tabStrings[_index],
+                  child: Icon(Icons.check,
+                      size: 14.0, color: widget.selectedColor))
+            ])),
+        onTap: () {
+          clickItem(info.name);
+        });
   }
 
   Widget _buildSusWidget(String susTag) {
     susTag = (susTag == "★" ? "热门城市" : susTag);
     return Container(
-      height: _suspensionHeight.toDouble(),
+      height: _SUS_HEIGHT,
+      width: MediaQuery.of(context).size.width,
       padding: const EdgeInsets.only(left: 15.0),
       color: Color(0xfff3f4f5),
       alignment: Alignment.centerLeft,
@@ -405,41 +311,30 @@ class _JDAddressDialogState extends State<JDAddressDialog>
   }
 
   Widget _buildListView() {
-    _controller = ScrollController();
     return AzListView(
-      key: ValueKey(_index),
-      controller: _controller,
-      data: mList,
-//      topData: _hotCityList,
-      itemBuilder: (context, model) => _buildListItem(model),
-      suspensionWidget: _buildSusWidget(_suspensionTag),
-      isUseRealIndex: true,
-      itemHeight: _itemHeight.toInt(),
-      suspensionHeight: _suspensionHeight,
-      onSusTagChanged: _onSusTagChanged,
-      //showCenterTip: false,
-      header: AzListViewHeader(
-          tag: "★",
-          height: _index==0?headerHeight.toInt():0,
-          builder: (context) {
-            if(_index!=0){
-              return Container();
-            }
-            return _buildHeader();
-          }),
+      itemScrollController: _itemScrollController,
+      data: _list,
+      itemCount: _list.length,
+      itemBuilder: (context, index) {
+        return _buildListItem(_list[index]);
+      },
+      susItemHeight: _SUS_HEIGHT,
+      susItemBuilder: (ctx, index) {
+        return _buildSusWidget(_list[index].tagIndex.toString());
+      },
+      indexBarData: SuspensionUtil.getTagIndexList(_list),
+      indexBarOptions: IndexBarOptions(
+        needRebuild: true,
+        color: Colors.transparent,
+        downColor: Color(0xFFEEEEEE),
+      ),
     );
   }
 
   Widget _line = Container(height: 0.6, color: Color(0xFFEEEEEE));
 
-  void _onSusTagChanged(String tag) {
-    setState(() {
-      _suspensionTag = tag;
-    });
-  }
-
   void _handleList(List<EntityInfo> list) {
-    if (list == null || list.isEmpty) return;
+    if (list.isEmpty) return;
     for (int i = 0, length = list.length; i < length; i++) {
       String pinyin = PinyinHelper.getPinyinE(list[i].name);
       String tag = pinyin.substring(0, 1).toUpperCase();
@@ -452,5 +347,37 @@ class _JDAddressDialogState extends State<JDAddressDialog>
     }
     //根据A-Z排序
     SuspensionUtil.sortListBySuspensionTag(list);
+    SuspensionUtil.setShowSuspensionStatus(list);
   }
+}
+
+Future<Result?> showAddressSelectorDialog({
+  required BuildContext context,
+  String? title = '',
+  String? province,
+  String? city,
+  String? area,
+  Color? selectedColor,
+  Color? unselectedColor,
+  double? itemTextFontSize,
+  TextStyle? titleTextStyle,
+}) {
+  return showModalBottomSheet(
+      context: context,
+      isScrollControlled: true, //设为true，此时为全屏展示
+      builder: (BuildContext context) {
+        return JDAddressDialog(
+            itemTextFontSize: itemTextFontSize ?? 14,
+            titleTextStyle: titleTextStyle ??
+                const TextStyle(
+                    fontSize: 16.0,
+                    color: Colors.black,
+                    fontWeight: FontWeight.bold),
+            provinceName: province,
+            cityName: city,
+            areaName: area,
+            title: title,
+            selectedColor: selectedColor ?? Colors.red,
+            unselectedColor: unselectedColor ?? Colors.black);
+      });
 }

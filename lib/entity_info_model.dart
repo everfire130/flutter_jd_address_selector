@@ -2,17 +2,16 @@ import 'package:azlistview/azlistview.dart';
 
 class EntityInfo extends ISuspensionBean {
   String name;
-  String tagIndex;
-  String namePinyin;
+  String? tagIndex;
+  String? namePinyin;
 
   EntityInfo({
-    this.name,
+    required this.name,
     this.tagIndex,
     this.namePinyin,
   });
 
-  EntityInfo.fromJson(Map<String, dynamic> json)
-      : name = json['name'] == null ? "" : json['name'];
+  EntityInfo.fromJson(Map<String, dynamic> json) : name = json['name'] ?? "";
 
   Map<String, dynamic> toJson() => {
         'name': name,
@@ -22,8 +21,9 @@ class EntityInfo extends ISuspensionBean {
       };
 
   @override
-  String getSuspensionTag() => tagIndex;
+  String getSuspensionTag() => tagIndex.toString();
 
   @override
-  String toString() => "CityBean {" + " \"name\":\"" + name + "\"" + '}';
+  String toString() =>
+      "CityBean {" + " \"name\":\"" + name.toString() + "\"" + '}';
 }
