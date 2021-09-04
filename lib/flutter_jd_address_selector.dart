@@ -174,53 +174,51 @@ class _JDAddressDialogState extends State<JDAddressDialog>
 
   @override
   Widget build(BuildContext context) {
-    return Material(
+    return Container(
         color: Colors.white,
-        child: Container(
-            height: MediaQuery.of(context).size.height * 11.0 / 16.0,
-            child: Column(children: <Widget>[
-              Stack(children: <Widget>[
-                Container(
-                    width: double.infinity,
-                    alignment: Alignment.center,
-                    padding: const EdgeInsets.symmetric(vertical: 16.0),
-                    child:
-                        Text("${widget.title}", style: widget.titleTextStyle)),
-                Positioned(
-                    right: 0,
-                    child: IconButton(
-                        icon: Icon(Icons.close, size: 22),
-                        onPressed: () => Navigator.maybePop(context)))
-              ]),
-              _line,
-              Container(
-                  color: Colors.white,
-                  alignment: Alignment.centerLeft,
-                  child: TabBar(
-                      controller: _tabController,
-                      isScrollable: true,
-                      onTap: (index) {
-                        if (_positions[index] == -1) {
-                          _tabController.index = _index;
-                          return;
-                        }
-                        for (var i = index; i < _positions.length; i++) {
-                          _positions[i] = -1;
-                        }
-                        _resetList();
-                        setState(() {});
-                        _itemScrollController.jumpTo(index: 0);
-                      },
-                      indicatorSize: TabBarIndicatorSize.label,
-                      unselectedLabelColor: Colors.black,
-                      labelColor: widget.selectedColor,
-                      tabs: _tabs)),
-              _line,
-              Expanded(
-                  child: _provinces.length > 0
-                      ? _buildListView()
-                      : CupertinoActivityIndicator(animating: true))
-            ])));
+        height: MediaQuery.of(context).size.height * 11.0 / 16.0,
+        child: Column(children: <Widget>[
+          Stack(children: <Widget>[
+            Container(
+                width: double.infinity,
+                alignment: Alignment.center,
+                padding: const EdgeInsets.symmetric(vertical: 16.0),
+                child: Text("${widget.title}", style: widget.titleTextStyle)),
+            Positioned(
+                right: 0,
+                child: IconButton(
+                    icon: Icon(Icons.close, size: 22),
+                    onPressed: () => Navigator.maybePop(context)))
+          ]),
+          _line,
+          Container(
+              color: Colors.white,
+              alignment: Alignment.centerLeft,
+              child: TabBar(
+                  controller: _tabController,
+                  isScrollable: true,
+                  onTap: (index) {
+                    if (_positions[index] == -1) {
+                      _tabController.index = _index;
+                      return;
+                    }
+                    for (var i = index; i < _positions.length; i++) {
+                      _positions[i] = -1;
+                    }
+                    _resetList();
+                    setState(() {});
+                    _itemScrollController.jumpTo(index: 0);
+                  },
+                  indicatorSize: TabBarIndicatorSize.label,
+                  unselectedLabelColor: Colors.black,
+                  labelColor: widget.selectedColor,
+                  tabs: _tabs)),
+          _line,
+          Expanded(
+              child: _provinces.length > 0
+                  ? _buildListView()
+                  : CupertinoActivityIndicator(animating: true))
+        ]));
   }
 
   Future<List<Province>> _loadData() async {
@@ -312,6 +310,7 @@ class _JDAddressDialogState extends State<JDAddressDialog>
 
   Widget _buildListView() {
     return AzListView(
+      padding: EdgeInsets.only(bottom: MediaQuery.of(context).padding.bottom),
       itemScrollController: _itemScrollController,
       data: _list,
       itemCount: _list.length,
